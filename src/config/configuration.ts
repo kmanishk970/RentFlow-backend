@@ -1,5 +1,6 @@
 /** Shape of the app's configuration, read once at boot. */
 export default () => ({
+  nodeEnv: process.env.NODE_ENV ?? 'development',
   port: parseInt(process.env.PORT ?? '4000', 10),
   corsOrigin: process.env.CORS_ORIGIN ?? 'http://localhost:3000',
   database: {

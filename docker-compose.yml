@@ -1,0 +1,23 @@
+# Local Postgres for development. Nothing here is production configuration.
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: rentflow-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: rentflow
+      POSTGRES_PASSWORD: rentflow
+      POSTGRES_DB: rentflow
+    ports:
+      - "5432:5432"
+    volumes:
+      - rentflow-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      # migrate against a database that is actually accepting connections
+      test: ["CMD-SHELL", "pg_isready -U rentflow -d rentflow"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  rentflow-pgdata:

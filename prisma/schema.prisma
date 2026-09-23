@@ -1,0 +1,451 @@
+// RentFlow — Prisma client schema.
+//
+// prisma/migrations/0001_init/migration.sql is the contract; this file is the
+// typed client generated against it. Four things in that SQL cannot be
+// expressed here and are invisible to Prisma:
+//
+//   - check constraints            (~20 of them)
+//   - partial unique indexes       (one primary per lease, ID uniqueness)
+//   - the exclusion constraint     (no overlapping leases on a unit)
+//   - the composite foreign key    (units → floors on id + property_id)
+//
+// They still run in the database. The consequence is that `prisma migrate dev`
+// must always be used with `--create-only`, and the generated SQL read before
+// it is applied — a bare `migrate dev` can propose dropping what it cannot see.
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [pgcrypto, btree_gist]
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum IdKind {
+  aadhaar
+  pan
+  passport
+  voter_id
+  driving_licence
+
+  @@map("id_kind")
+}
+
+enum OccupantRole {
+  primary
+  member
+
+  @@map("occupant_role")
+}
+
+enum Relation {
+  wife
+  husband
+  son
+  daughter
+  father
+  mother
+  brother
+  sister
+  friend
+  other
+
+  @@map("relation")
+}
+
+enum LeaseStatus {
+  draft
+  active
+  ended
+  terminated
+
+  @@map("lease_status")
+}
+
+enum ChargeKind {
+  rent
+  electricity
+  water
+  maintenance
+  parking
+  other
+
+  @@map("charge_kind")
+}
+
+enum ElectricityMode {
+  meter
+  flat
+
+  @@map("electricity_mode")
+}
+
+enum PaymentMethod {
+  bank_transfer
+  cash
+  upi
+  cheque
+
+  @@map("payment_method")
+}
+
+enum DocumentKind {
+  agreement
+  id_proof
+  police_verification
+  property_doc
+  other
+
+  @@map("document_kind")
+}
+
+enum NotificationKind {
+  rent_reminder
+  lease_expiry
+  tenant_update
+  document_update
+  payment_received
+
+  @@map("notification_kind")
+}
+
+// ---------------------------------------------------------------------------
+// Owner
+// ---------------------------------------------------------------------------
+
+model Owner {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  /// Stored lowercased by the API — a check constraint enforces it.
+  email           String   @unique
+  passwordHash    String   @map("password_hash")
+  name            String
+  phone           String?
+  company         String?
+  address         String?
+  photoKey        String?  @map("photo_key")
+  plan            String   @default("free")
+  /// Default tariff, copied onto each bill so a rise is never retroactive.
+  electricityRate Decimal  @default(10) @map("electricity_rate") @db.Decimal(8, 2)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  properties    Property[]
+  people        Person[]
+  leases        Lease[]
+  meterReadings MeterReading[]
+  bills         Bill[]
+  payments      Payment[]
+  documents     Document[]
+  notifications Notification[]
+
+  @@map("owners")
+}
+
+// ---------------------------------------------------------------------------
+// Property → floor → unit
+// ---------------------------------------------------------------------------
+
+model Property {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerId   String   @map("owner_id") @db.Uuid
+  name      String
+  locality  String
+  address   String
+  /// residential | commercial | mixed
+  kind      String
+  imageKey  String?  @map("image_key")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  owner     Owner      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  floors    Floor[]
+  units     Unit[]
+  documents Document[]
+
+  @@index([ownerId])
+  @@map("properties")
+}
+
+model Floor {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  propertyId String   @map("property_id") @db.Uuid
+  /// 0 = ground
+  level      Int      @db.SmallInt
+  name       String
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  units    Unit[]
+
+  @@unique([propertyId, level])
+  /// Target of the composite foreign key from units. Written in SQL.
+  @@unique([id, propertyId])
+  @@map("floors")
+}
+
+model Unit {
+  id        String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  floorId   String @map("floor_id") @db.Uuid
+  /// Denormalised so owner-scoped queries are one join shallower. A composite
+  /// foreign key in SQL keeps it in step with the floor.
+  propertyId String @map("property_id") @db.Uuid
+  number    String
+  /// What a NEW lease is offered at. The agreed figures live on the lease.
+  defaultRent      Decimal  @map("default_rent") @db.Decimal(12, 2)
+  defaultDeposit   Decimal  @default(0) @map("default_deposit") @db.Decimal(12, 2)
+  /// Occupancy is derived from leases; this is the only real status column.
+  underMaintenance Boolean  @default(false) @map("under_maintenance")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  floor         Floor          @relation(fields: [floorId], references: [id], onDelete: Cascade)
+  property      Property       @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  leases        Lease[]
+  meterReadings MeterReading[]
+
+  @@unique([propertyId, number])
+  @@index([floorId])
+  @@map("units")
+}
+
+// ---------------------------------------------------------------------------
+// People and tenancies
+// ---------------------------------------------------------------------------
+
+model Person {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerId     String    @map("owner_id") @db.Uuid
+  fullName    String    @map("full_name")
+  phone       String?
+  email       String?
+  occupation  String?
+  /// A date, not an age: an age is wrong again on the next birthday.
+  dateOfBirth DateTime? @map("date_of_birth") @db.Date
+  addressLine String?   @map("address_line")
+  city        String?
+  state       String?
+  pincode     String?
+  idKind      IdKind?   @map("id_kind")
+  idNumber    String?   @map("id_number")
+  photoKey    String?   @map("photo_key")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  owner     Owner           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  occupancy LeaseOccupant[]
+  documents Document[]
+
+  @@index([ownerId])
+  @@map("people")
+}
+
+model Lease {
+  id              String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerId         String      @map("owner_id") @db.Uuid
+  unitId          String      @map("unit_id") @db.Uuid
+  termStart       DateTime    @map("term_start") @db.Date
+  /// null = open-ended
+  termEnd         DateTime?   @map("term_end") @db.Date
+  rent            Decimal     @db.Decimal(12, 2)
+  deposit         Decimal     @default(0) @db.Decimal(12, 2)
+  depositReturned Decimal     @default(0) @map("deposit_returned") @db.Decimal(12, 2)
+  /// 1–28, so every month has the day.
+  dueDay          Int         @default(5) @map("due_day") @db.SmallInt
+  status          LeaseStatus @default(active)
+  emergencyName   String?     @map("emergency_name")
+  emergencyPhone  String?     @map("emergency_phone")
+  note            String?
+  createdAt       DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  owner         Owner           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  unit          Unit            @relation(fields: [unitId], references: [id])
+  occupants     LeaseOccupant[]
+  bills         Bill[]
+  payments      Payment[]
+  documents     Document[]
+  notifications Notification[]
+
+  @@index([unitId])
+  @@index([ownerId, status])
+  @@map("leases")
+}
+
+model LeaseOccupant {
+  id           String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  leaseId      String       @map("lease_id") @db.Uuid
+  personId     String       @map("person_id") @db.Uuid
+  role         OccupantRole
+  /// How this person relates to the primary; null on the primary itself.
+  relation     Relation?
+  relationNote String?      @map("relation_note")
+  movedIn      DateTime?    @map("moved_in") @db.Date
+  movedOut     DateTime?    @map("moved_out") @db.Date
+  createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  lease  Lease  @relation(fields: [leaseId], references: [id], onDelete: Cascade)
+  person Person @relation(fields: [personId], references: [id])
+
+  @@unique([leaseId, personId])
+  @@index([personId])
+  @@map("lease_occupants")
+}
+
+// ---------------------------------------------------------------------------
+// Meter readings — against the unit, because the meter outlives the tenancy
+// ---------------------------------------------------------------------------
+
+model MeterReading {
+  id      String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerId String   @map("owner_id") @db.Uuid
+  unitId  String   @map("unit_id") @db.Uuid
+  readOn  DateTime @map("read_on") @db.Date
+  reading Decimal  @db.Decimal(12, 2)
+  /// The meter was replaced or rolled over: this row opens a fresh count, and
+  /// consumption is never computed across it.
+  startsNewMeter Boolean  @default(false) @map("starts_new_meter")
+  note           String?
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  owner Owner @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  unit  Unit  @relation(fields: [unitId], references: [id], onDelete: Cascade)
+
+  openedLines BillLine[] @relation("PreviousReading")
+  closedLines BillLine[] @relation("CurrentReading")
+
+  @@unique([unitId, readOn])
+  @@index([unitId, readOn(sort: Desc)])
+  @@map("meter_readings")
+}
+
+// ---------------------------------------------------------------------------
+// Billing
+// ---------------------------------------------------------------------------
+
+model Bill {
+  id       String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerId  String   @map("owner_id") @db.Uuid
+  leaseId  String   @map("lease_id") @db.Uuid
+  /// First of the month it covers. A date sorts and does arithmetic, which the
+  /// frontend's "2026-09" string cannot.
+  period   DateTime @db.Date
+  dueDate  DateTime @map("due_date") @db.Date
+  note     String?
+  issuedAt DateTime @default(now()) @map("issued_at") @db.Timestamptz(6)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  owner Owner      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  lease Lease      @relation(fields: [leaseId], references: [id], onDelete: Cascade)
+  lines BillLine[]
+
+  /// Re-billing a month replaces it; it never doubles what is owed.
+  @@unique([leaseId, period])
+  @@index([ownerId, period(sort: Desc)])
+  @@map("bills")
+}
+
+model BillLine {
+  id     String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  billId String     @map("bill_id") @db.Uuid
+  kind   ChargeKind
+  label  String?
+  amount Decimal    @db.Decimal(12, 2)
+
+  /// The electricity working, frozen at billing time. A bill is a financial
+  /// document: correcting a reading later must not rewrite what was charged.
+  electricityMode   ElectricityMode? @map("electricity_mode")
+  meterPrevious     Decimal?         @map("meter_previous") @db.Decimal(12, 2)
+  meterCurrent      Decimal?         @map("meter_current") @db.Decimal(12, 2)
+  unitRate          Decimal?         @map("unit_rate") @db.Decimal(8, 2)
+  /// Provenance only — the frozen numbers above are what was billed.
+  previousReadingId String?          @map("previous_reading_id") @db.Uuid
+  currentReadingId  String?          @map("current_reading_id") @db.Uuid
+
+  bill            Bill          @relation(fields: [billId], references: [id], onDelete: Cascade)
+  previousReading MeterReading? @relation("PreviousReading", fields: [previousReadingId], references: [id], onDelete: SetNull)
+  currentReading  MeterReading? @relation("CurrentReading", fields: [currentReadingId], references: [id], onDelete: SetNull)
+
+  @@index([billId])
+  @@map("bill_lines")
+}
+
+model Payment {
+  id      String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerId String @map("owner_id") @db.Uuid
+  leaseId String @map("lease_id") @db.Uuid
+  /// The month this money is set against; surplus and shortfall carry forward.
+  /// Deliberately not a foreign key to a bill: a month can be paid before it is
+  /// billed, and one payment routinely clears arrears as well as the month.
+  period    DateTime      @db.Date
+  amount    Decimal       @db.Decimal(12, 2)
+  paidOn    DateTime      @map("paid_on") @db.Date
+  method    PaymentMethod
+  reference String?
+  note      String?
+  createdAt DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  owner Owner @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  lease Lease @relation(fields: [leaseId], references: [id], onDelete: Cascade)
+
+  @@index([leaseId, period])
+  @@index([ownerId, paidOn(sort: Desc)])
+  @@map("payments")
+}
+
+// ---------------------------------------------------------------------------
+// Documents and notifications
+// ---------------------------------------------------------------------------
+
+model Document {
+  id      String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerId String       @map("owner_id") @db.Uuid
+  kind    DocumentKind
+  title   String
+  /// Filed against any of these, or none.
+  propertyId String? @map("property_id") @db.Uuid
+  leaseId    String? @map("lease_id") @db.Uuid
+  personId   String? @map("person_id") @db.Uuid
+  /// The bytes live in object storage; this is the key that fetches them.
+  storageKey   String   @unique @map("storage_key")
+  originalName String   @map("original_name")
+  mimeType     String   @map("mime_type")
+  sizeBytes    BigInt   @map("size_bytes")
+  uploadedAt   DateTime @default(now()) @map("uploaded_at") @db.Timestamptz(6)
+
+  owner    Owner     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  property Property? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  lease    Lease?    @relation(fields: [leaseId], references: [id], onDelete: SetNull)
+  person   Person?   @relation(fields: [personId], references: [id], onDelete: SetNull)
+
+  @@index([ownerId, kind])
+  @@index([leaseId])
+  @@index([personId])
+  @@map("documents")
+}
+
+model Notification {
+  id      String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerId String           @map("owner_id") @db.Uuid
+  kind    NotificationKind
+  title   String
+  body    String
+  leaseId String?          @map("lease_id") @db.Uuid
+  /// A timestamp, not a boolean: it also tells you when.
+  readAt    DateTime? @map("read_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  owner Owner  @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  lease Lease? @relation(fields: [leaseId], references: [id], onDelete: Cascade)
+
+  @@index([ownerId, createdAt(sort: Desc)])
+  @@map("notifications")
+}

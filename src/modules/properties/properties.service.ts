@@ -180,9 +180,14 @@ export class PropertiesService {
     return new Set(active.map((l) => l.unitId));
   }
 
+  /**
+   * Occupied outranks maintenance: a unit with a tenant in it is occupied
+   * whatever work is going on, and rent is still due. "Maintenance" means the
+   * unit is empty and deliberately held off the market.
+   */
   private statusFor(unit: Unit, occupied: Set<string>) {
-    if (unit.underMaintenance) return 'maintenance';
-    return occupied.has(unit.id) ? 'occupied' : 'vacant';
+    if (occupied.has(unit.id)) return 'occupied';
+    return unit.underMaintenance ? 'maintenance' : 'vacant';
   }
 
   private async decorateUnits(units: Unit[]) {

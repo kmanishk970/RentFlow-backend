@@ -65,6 +65,15 @@ const MESSAGES: Record<string, string> = {
   meter_readings_unit_id_read_on_key:
     'This unit already has a reading on that date.',
   documents_storage_key_key: 'That file has already been recorded.',
+  leases_unit_id_fkey:
+    'That unit still has a tenancy on it. End the lease before removing the unit — deleting it would take the rent history with it.',
+  lease_occupants_person_id_fkey:
+    'That person is on a lease. Remove them from it before deleting the record.',
+  bill_lines_bill_id_fkey: 'That bill still has charges on it.',
+  units_floor_matches_property:
+    'That floor is not in this property.',
+  floors_id_property_id_key:
+    'That floor is not in this property.',
   leases_due_day_range:
     'The rent due day must be between 1 and 28, so every month has it.',
   leases_term_ordered: 'A lease must end after it starts.',

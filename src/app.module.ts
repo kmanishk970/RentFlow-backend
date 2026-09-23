@@ -10,7 +10,14 @@ import { DatabaseModule } from './database/database.module';
 import { DatabaseExceptionFilter } from './common/filters/database-exception.filter';
 
 import { AuthModule } from './modules/auth/auth.module';
+import { OwnersModule } from './modules/owners/owners.module';
 import { PropertiesModule } from './modules/properties/properties.module';
+import { PeopleModule } from './modules/people/people.module';
+import { LeasesModule } from './modules/leases/leases.module';
+import { BillingModule } from './modules/billing/billing.module';
+import { DocumentsModule } from './modules/documents/documents.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
+import { ReportsModule } from './modules/reports/reports.module';
 
 @Module({
   imports: [
@@ -27,7 +34,14 @@ import { PropertiesModule } from './modules/properties/properties.module';
     DatabaseModule,
 
     AuthModule,
+    OwnersModule,
     PropertiesModule,
+    PeopleModule,
+    LeasesModule,
+    BillingModule,
+    DocumentsModule,
+    NotificationsModule,
+    ReportsModule,
   ],
   providers: [
     // The JWT guard is registered inside AuthModule, where its dependencies

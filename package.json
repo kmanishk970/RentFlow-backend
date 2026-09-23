@@ -15,7 +15,8 @@
     "db:migrate": "sequelize-cli db:migrate",
     "db:rollback": "sequelize-cli db:migrate:undo",
     "db:seed": "sequelize-cli db:seed:all",
-    "db:reset": "sequelize-cli db:migrate:undo:all && sequelize-cli db:migrate && sequelize-cli db:seed:all"
+    "db:reset": "sequelize-cli db:migrate:undo:all && sequelize-cli db:migrate && sequelize-cli db:seed:all",
+    "test:smoke": "node test/smoke.mjs"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

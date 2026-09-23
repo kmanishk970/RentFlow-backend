@@ -3,6 +3,9 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
+/** psql meta-commands are not valid over the wire, so they are stripped. */
+const META_COMMAND = /^\s*\\/;
+
 /**
  * Demo data, as plain SQL for the same reason as the schema: it is readable,
  * and it exercises the ledger rather than describing it.
@@ -13,10 +16,13 @@ module.exports = {
       path.join(__dirname, '..', 'sql', 'seed.sql'),
       'utf8',
     );
-    // psql meta-commands (\echo) are not valid over the wire.
-    await queryInterface.sequelize.query(
-      sql.split('\n').filter((line) => !line.startsWith('\')).join('\n'),
-    );
+
+    const statements = sql
+      .split('\n')
+      .filter((line) => !META_COMMAND.test(line))
+      .join('\n');
+
+    await queryInterface.sequelize.query(statements);
   },
 
   async down(queryInterface) {

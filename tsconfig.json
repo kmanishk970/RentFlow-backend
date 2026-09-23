@@ -2,6 +2,10 @@
   "compilerOptions": {
     "module": "commonjs",
     "target": "ES2023",
+    // Decorator-based ORMs need this off. With ES2022+ it defaults to true,
+    // and class fields then shadow Model.id/createdAt/updatedAt instead of
+    // mapping onto them (TS2612).
+    "useDefineForClassFields": false,
     "lib": ["ES2023"],
     "moduleResolution": "node",
     "outDir": "./dist",

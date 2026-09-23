@@ -1,0 +1,11 @@
+// sequelize-cli reads plain JS, so migrations and seeders stay .js while the
+// application itself is TypeScript. The schema they apply lives in
+// src/database/sql — that SQL is the contract.
+const path = require('path');
+
+module.exports = {
+  config: path.resolve('src/database', 'sequelize-cli.config.js'),
+  'migrations-path': path.resolve('src/database', 'migrations'),
+  'seeders-path': path.resolve('src/database', 'seeders'),
+  'models-path': path.resolve('src/modules'),
+};

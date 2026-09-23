@@ -1,4 +1,9 @@
-# Local Postgres for development. Nothing here is production configuration.
+# Optional. You already have Postgres locally, with pgAdmin pointed at it —
+# this is only here for a throwaway instance (CI, a clean-slate test, a second
+# machine). It listens on 5433 so it can never fight your local 5432.
+#
+# To use it instead, set:
+#   DATABASE_URL="postgresql://rentflow:rentflow@localhost:5433/rent_manager"
 services:
   db:
     image: postgres:16-alpine
@@ -7,14 +12,13 @@ services:
     environment:
       POSTGRES_USER: rentflow
       POSTGRES_PASSWORD: rentflow
-      POSTGRES_DB: rentflow
+      POSTGRES_DB: rent_manager
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - rentflow-pgdata:/var/lib/postgresql/data
     healthcheck:
-      # migrate against a database that is actually accepting connections
-      test: ["CMD-SHELL", "pg_isready -U rentflow -d rentflow"]
+      test: ["CMD-SHELL", "pg_isready -U rentflow -d rent_manager"]
       interval: 5s
       timeout: 3s
       retries: 10

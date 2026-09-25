@@ -7,6 +7,73 @@ import helmet from 'helmet';
 
 import { AppModule } from './app.module';
 
+/**
+ * Whether an origin is loopback or a private-network address, on any port.
+ *
+ * Only consulted in development, where the app is opened from a phone or
+ * another machine on the LAN as often as from the one running it.
+ *
+ * Parsed rather than pattern-matched: URL handles the bracketed IPv6 form and
+ * the port for us, and the address ranges read as the rules they are.
+ */
+function isPrivateNetwork(origin: string): boolean {
+  let hostname: string;
+  try {
+    hostname = new URL(origin).hostname;
+  } catch {
+    return false;
+  }
+
+  if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1') {
+    return true;
+  }
+
+  const octets = hostname.split('.').map(Number);
+  if (
+    octets.length !== 4 ||
+    octets.some((n) => !Number.isInteger(n) || n < 0 || n > 255)
+  ) {
+    return false;
+  }
+
+  const [first, second] = octets;
+  return (
+    first === 10 ||
+    (first === 192 && second === 168) ||
+    (first === 172 && second >= 16 && second <= 31)
+  );
+}
+
+/**
+ * Decides which origins may read a response.
+ *
+ * CORS_ORIGIN takes a comma-separated list, and that list is the whole answer
+ * in production. In development the private-network addresses are allowed on
+ * top, because otherwise opening the app on the machine's LAN IP fails with a
+ * blocked response and no useful error.
+ */
+function allowedOrigin(configured: string | undefined, isDev: boolean) {
+  const list = (configured ?? '')
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean);
+
+  return (
+    origin: string | undefined,
+    callback: (error: Error | null, allow?: boolean) => void,
+  ) => {
+    // No Origin header at all: curl, a server-side call, a same-origin request.
+    if (!origin) return callback(null, true);
+    if (list.includes(origin)) return callback(null, true);
+    if (isDev && isPrivateNetwork(origin)) return callback(null, true);
+
+    // Declined, not errored. Throwing here turns a refused origin into a 500
+    // with a stack trace in the log; omitting the header is what CORS expects
+    // and the browser blocks the response either way.
+    return callback(null, false);
+  };
+}
+
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const config = app.get(ConfigService);
@@ -28,7 +95,10 @@ async function bootstrap() {
   app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' });
 
   app.enableCors({
-    origin: config.get<string>('corsOrigin'),
+    origin: allowedOrigin(
+      config.get<string>('corsOrigin'),
+      config.get<string>('nodeEnv') !== 'production',
+    ),
     credentials: true,
   });
 

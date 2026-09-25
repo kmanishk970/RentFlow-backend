@@ -11,7 +11,19 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const config = app.get(ConfigService);
 
-  app.use(helmet());
+  // Helmet defaults Cross-Origin-Resource-Policy to same-origin, which makes a
+  // browser discard the response even when CORS allowed the request — the
+  // frontend sees a network failure with no status. An API served to a browser
+  // on another origin has to say so. curl ignores CORP entirely, so this is
+  // invisible to anything but a real browser.
+  app.use(
+    helmet({
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+      // No HTML is served from here, so the CSP only gets in the way of the
+      // Swagger page.
+      contentSecurityPolicy: false,
+    }),
+  );
   app.setGlobalPrefix('api');
   app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' });
 

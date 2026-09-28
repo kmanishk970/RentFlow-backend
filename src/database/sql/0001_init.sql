@@ -38,6 +38,7 @@ CREATE TABLE "owners" (
   "company"          text,
   "address"          text,
   "photo_key"        text,
+  "photo_url"        text,
   "plan"             text NOT NULL DEFAULT 'free',
   -- default tariff, copied onto each bill so a rise is never retroactive
   "electricity_rate" numeric(8,2) NOT NULL DEFAULT 10,
@@ -122,6 +123,7 @@ CREATE TABLE "people" (
   "id_kind"       "id_kind",
   "id_number"     text,
   "photo_key"     text,
+  "photo_url"     text,
   "created_at"    timestamptz NOT NULL DEFAULT now(),
   "updated_at"    timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT "people_pincode_format"
@@ -316,8 +318,15 @@ CREATE TABLE "documents" (
   "property_id"   uuid REFERENCES "properties"("id") ON DELETE SET NULL,
   "lease_id"      uuid REFERENCES "leases"("id") ON DELETE SET NULL,
   "person_id"     uuid REFERENCES "people"("id") ON DELETE SET NULL,
-  -- the bytes live in object storage; this is the key that fetches them
+  -- the bytes live in object storage: the key deletes the asset, the url
+  -- fetches it (Cloudinary hands both back at upload time)
   "storage_key"   text NOT NULL,
+  "url"           text,
+  "resource_type" text,
+  -- the other side of an ID card, when it has one
+  "back_storage_key" text,
+  "back_url"         text,
+  "back_resource_type" text,
   "original_name" text NOT NULL,
   "mime_type"     text NOT NULL,
   "size_bytes"    bigint NOT NULL,

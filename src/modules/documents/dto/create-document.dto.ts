@@ -1,7 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
-  IsEnum, IsInt, IsOptional, IsString, IsUUID, Length, Max, Min,
+  IsEnum, IsInt, IsOptional, IsString, IsUrl, IsUUID, Length, Max, Min,
 } from 'class-validator';
 import { DocumentKind } from '../../../common/domain.enums';
 
@@ -26,9 +26,31 @@ export class CreateDocumentDto {
   @ApiPropertyOptional() @IsOptional() @IsUUID('4')
   personId?: string;
 
-  @ApiProperty({ description: 'Where the bytes live in object storage' })
+  @ApiProperty({ description: "Cloudinary's public id, from POST /media/upload" })
   @IsString() @Length(1, 400)
   storageKey: string;
+
+  @ApiPropertyOptional({ description: 'Delivery URL, from POST /media/upload' })
+  @IsOptional() @IsUrl({ require_tld: false }, { message: 'url must be a URL' })
+  @Length(1, 2000)
+  url?: string;
+
+  @ApiPropertyOptional({ example: 'raw', description: "image or raw, as the upload returned" })
+  @IsOptional() @IsString() @Length(1, 20)
+  resourceType?: string;
+
+  @ApiPropertyOptional({ description: "The back of an ID card: Cloudinary public id" })
+  @IsOptional() @IsString() @Length(1, 400)
+  backStorageKey?: string;
+
+  @ApiPropertyOptional({ description: 'The back of an ID card: delivery URL' })
+  @IsOptional() @IsUrl({ require_tld: false }, { message: 'backUrl must be a URL' })
+  @Length(1, 2000)
+  backUrl?: string;
+
+  @ApiPropertyOptional({ example: 'image' })
+  @IsOptional() @IsString() @Length(1, 20)
+  backResourceType?: string;
 
   @ApiProperty({ example: 'agreement.pdf' })
   @IsString() @Length(1, 260)

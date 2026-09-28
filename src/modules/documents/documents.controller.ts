@@ -1,10 +1,11 @@
 import {
-  Body, Controller, Delete, Get, Param, ParseUUIDPipe, Post, Query,
+  Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 
 import { DocumentsService } from './documents.service';
 import { CreateDocumentDto } from './dto/create-document.dto';
+import { UpdateDocumentDto } from './dto/update-document.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { DocumentKind } from '../../common/domain.enums';
 
@@ -42,6 +43,21 @@ export class DocumentsController {
     @Param('id', ParseUUIDPipe) id: string,
   ) {
     return this.documents.findOne(ownerId, id);
+  }
+
+  @Patch(':id')
+  @ApiOperation({
+    summary: 'Replace the files on a document, or rename it',
+    description:
+      'Re-photographing an ID card edits the record rather than adding a ' +
+      'second one. Files it replaces are deleted from storage.',
+  })
+  update(
+    @CurrentUser('ownerId') ownerId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateDocumentDto,
+  ) {
+    return this.documents.update(ownerId, id, dto);
   }
 
   @Delete(':id')

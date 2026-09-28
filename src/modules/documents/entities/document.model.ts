@@ -8,7 +8,7 @@ import { Lease } from '../../leases/entities/lease.model';
 import { Person } from '../../people/entities/person.model';
 import { DocumentKind } from '../../../common/domain.enums';
 
-/** Metadata. The bytes live in object storage under `storageKey`. */
+/** Metadata. The bytes live in Cloudinary, under `storageKey`, served at `url`. */
 @Table({ tableName: 'documents', underscored: true, timestamps: false })
 export class Document extends Model<Document> {
   @PrimaryKey
@@ -39,8 +39,30 @@ export class Document extends Model<Document> {
   @Column(DataType.UUID)
   personId: string | null;
 
+  /** Cloudinary's public id. What a delete needs. */
   @Column({ type: DataType.TEXT, allowNull: false, unique: true })
   storageKey: string;
+
+  /** The delivery URL. What a page opens. */
+  @Column(DataType.TEXT)
+  url: string | null;
+
+  /** 'image' or 'raw' — needed alongside the public id to address the asset. */
+  @Column(DataType.TEXT)
+  resourceType: string | null;
+
+  /**
+   * The other side, for an ID card photographed twice. Null for anything
+   * single-sided, which is most things.
+   */
+  @Column(DataType.TEXT)
+  backStorageKey: string | null;
+
+  @Column(DataType.TEXT)
+  backUrl: string | null;
+
+  @Column(DataType.TEXT)
+  backResourceType: string | null;
 
   @Column({ type: DataType.TEXT, allowNull: false })
   originalName: string;

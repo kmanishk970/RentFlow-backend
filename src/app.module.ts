@@ -16,6 +16,7 @@ import { PeopleModule } from './modules/people/people.module';
 import { LeasesModule } from './modules/leases/leases.module';
 import { BillingModule } from './modules/billing/billing.module';
 import { DocumentsModule } from './modules/documents/documents.module';
+import { MediaModule } from './modules/media/media.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { ReportsModule } from './modules/reports/reports.module';
 
@@ -40,6 +41,7 @@ import { ReportsModule } from './modules/reports/reports.module';
     LeasesModule,
     BillingModule,
     DocumentsModule,
+    MediaModule,
     NotificationsModule,
     ReportsModule,
   ],

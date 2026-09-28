@@ -55,7 +55,11 @@ export class CreatePersonDto {
   @IsOptional() @IsString() @Length(4, 40)
   idNumber?: string;
 
-  @ApiProperty({ required: false })
-  @IsOptional() @IsString()
+  @ApiProperty({ required: false, description: "Cloudinary public id, from POST /media/upload" })
+  @IsOptional() @IsString() @Length(0, 400)
   photoKey?: string;
+
+  @ApiProperty({ required: false, description: 'Delivery URL, from POST /media/upload' })
+  @IsOptional() @IsString() @Length(0, 2000)
+  photoUrl?: string;
 }

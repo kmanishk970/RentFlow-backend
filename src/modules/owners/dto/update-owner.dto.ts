@@ -14,8 +14,13 @@ export class UpdateOwnerDto {
   @ApiProperty({ required: false }) @IsOptional() @IsString() @Length(0, 240)
   address?: string;
 
-  @ApiProperty({ required: false }) @IsOptional() @IsString()
+  @ApiProperty({ required: false, description: "Cloudinary public id, from POST /media/upload" })
+  @IsOptional() @IsString() @Length(0, 400)
   photoKey?: string;
+
+  @ApiProperty({ required: false, description: 'Delivery URL, from POST /media/upload' })
+  @IsOptional() @IsString() @Length(0, 2000)
+  photoUrl?: string;
 
   @ApiProperty({ required: false, example: '10.00', description: 'Default rupees per electricity unit' })
   @IsOptional()

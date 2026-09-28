@@ -6,7 +6,7 @@ import type { UpdateOwnerDto } from './dto/update-owner.dto';
 /** The password hash never leaves this service. */
 const PUBLIC_FIELDS = [
   'id', 'email', 'name', 'phone', 'company', 'address',
-  'photoKey', 'plan', 'electricityRate', 'createdAt', 'updatedAt',
+  'photoKey', 'photoUrl', 'plan', 'electricityRate', 'createdAt', 'updatedAt',
 ] as const;
 
 @Injectable()

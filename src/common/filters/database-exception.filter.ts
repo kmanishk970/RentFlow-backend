@@ -9,7 +9,12 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import type { Response } from 'express';
-import { BaseError, DatabaseError, ValidationError } from 'sequelize';
+import {
+  BaseError,
+  DatabaseError,
+  UniqueConstraintError,
+  ValidationError,
+} from 'sequelize';
 
 /**
  * Turns database rejections into honest HTTP responses.
@@ -115,7 +120,13 @@ export class DatabaseExceptionFilter implements ExceptionFilter {
     constraint?: string;
   } {
     // Sequelize's own validation runs before the query is sent.
-    if (error instanceof ValidationError) {
+    //
+    // UniqueConstraintError extends ValidationError, so it has to be excluded
+    // here or it never reaches the constraint table below — and a duplicate ID
+    // number comes back as "owner_id must be unique; id_kind must be unique",
+    // which is Sequelize listing the index columns, not anything a person can
+    // act on.
+    if (error instanceof ValidationError && !(error instanceof UniqueConstraintError)) {
       return {
         status: HttpStatus.UNPROCESSABLE_ENTITY,
         message: error.errors.map((e) => e.message).join('; '),

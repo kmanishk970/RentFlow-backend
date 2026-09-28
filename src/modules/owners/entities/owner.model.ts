@@ -41,8 +41,12 @@ export class Owner extends Model<Owner> {
   @Column(DataType.TEXT)
   address: string | null;
 
+  /** photoKey is Cloudinary's public id; photoUrl is what an <img> loads. */
   @Column(DataType.TEXT)
   photoKey: string | null;
+
+  @Column(DataType.TEXT)
+  photoUrl: string | null;
 
   @Default('free')
   @Column({ type: DataType.TEXT, allowNull: false })

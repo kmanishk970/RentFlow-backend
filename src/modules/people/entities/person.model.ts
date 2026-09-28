@@ -44,7 +44,9 @@ export class Person extends Model<Person> {
   idKind: IdKind | null;
 
   @Column(DataType.TEXT) idNumber: string | null;
+  /** photoKey is Cloudinary's public id; photoUrl is what an <img> loads. */
   @Column(DataType.TEXT) photoKey: string | null;
+  @Column(DataType.TEXT) photoUrl: string | null;
 
   @CreatedAt createdAt: Date;
   @UpdatedAt updatedAt: Date;

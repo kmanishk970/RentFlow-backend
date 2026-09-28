@@ -13,10 +13,18 @@ export default () => ({
     refreshSecret: process.env.JWT_REFRESH_SECRET,
     refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN ?? '30d',
   },
-  storage: {
-    endpoint: process.env.STORAGE_ENDPOINT,
-    bucket: process.env.STORAGE_BUCKET,
-    accessKey: process.env.STORAGE_ACCESS_KEY,
-    secretKey: process.env.STORAGE_SECRET_KEY,
+  cloudinary: {
+    /**
+     * The whole credential in one string, as the Cloudinary console hands it
+     * out: cloudinary://<key>:<secret>@<cloud_name>. Preferred over the three
+     * separate values, which can be copied from two different environments
+     * and then fail with nothing but "cloud_name mismatch" to go on.
+     */
+    url: process.env.CLOUDINARY_URL,
+    cloudName: process.env.CLOUDINARY_CLOUD_NAME,
+    apiKey: process.env.CLOUDINARY_API_KEY,
+    apiSecret: process.env.CLOUDINARY_API_SECRET,
+    /** Root folder in the account, so one account can hold several apps. */
+    folder: process.env.CLOUDINARY_FOLDER ?? 'rentflow',
   },
 });

@@ -17,10 +17,14 @@ const envSchema = z.object({
   JWT_REFRESH_SECRET: z.string().min(16),
   JWT_REFRESH_EXPIRES_IN: z.string().default('30d'),
 
-  STORAGE_ENDPOINT: z.string().optional(),
-  STORAGE_BUCKET: z.string().optional(),
-  STORAGE_ACCESS_KEY: z.string().optional(),
-  STORAGE_SECRET_KEY: z.string().optional(),
+  // Optional on purpose: everything but uploading works without an account,
+  // and a first run should not be blocked by one. Uploading without them is
+  // refused with a message that says which is missing, not a crash at boot.
+  CLOUDINARY_URL: z.string().optional(),
+  CLOUDINARY_CLOUD_NAME: z.string().optional(),
+  CLOUDINARY_API_KEY: z.string().optional(),
+  CLOUDINARY_API_SECRET: z.string().optional(),
+  CLOUDINARY_FOLDER: z.string().default('rentflow'),
 });
 
 export function validateEnv(raw: Record<string, unknown>) {

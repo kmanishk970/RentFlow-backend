@@ -1,0 +1,39 @@
+# Render deployment, as a file rather than a form.
+#
+# Two things here are easy to get wrong by hand and impossible to forget once
+# they are written down:
+#
+#   --include=dev  — the Nest CLI and sequelize-cli are devDependencies, and
+#                    Render sets NODE_ENV=production, which would otherwise
+#                    skip them and fail the build on "nest: not found".
+#
+#   db:migrate     — the schema moves with the code. A deploy that ships an
+#                    endpoint without the column it reads is a 500 waiting for
+#                    the first person who opens that page.
+#
+# PORT is supplied by Render and read in src/config/configuration.ts; setting
+# it here would only fight with the platform.
+services:
+  - type: web
+    name: rentflow-api
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: npm ci --include=dev && npm run build && npx sequelize-cli db:migrate
+    startCommand: npm run start:prod
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Set in the dashboard, never here: this file is public.
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: CLOUDINARY_URL
+        sync: false
+      # The deployed frontend's origin. Anything else is refused by CORS.
+      - key: CORS_ORIGIN
+        sync: false

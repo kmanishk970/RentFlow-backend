@@ -19,6 +19,7 @@ import { DocumentsModule } from './modules/documents/documents.module';
 import { MediaModule } from './modules/media/media.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { ReportsModule } from './modules/reports/reports.module';
+import { HealthModule } from './modules/health/health.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { ReportsModule } from './modules/reports/reports.module';
     MediaModule,
     NotificationsModule,
     ReportsModule,
+    HealthModule,
   ],
   providers: [
     // The JWT guard is registered inside AuthModule, where its dependencies

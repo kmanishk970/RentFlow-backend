@@ -42,6 +42,22 @@ export const MODELS = [
         dialect: 'postgres' as const,
         uri: config.getOrThrow<string>('database.url'),
         models: MODELS,
+        /**
+         * A managed Postgres refuses an unencrypted connection, and the
+         * certificate it presents is signed by a chain node does not carry —
+         * so verification is off while encryption stays on. Local development
+         * talks to a database on the same machine and needs neither.
+         *
+         * sequelize-cli has the same block in its own config: it runs outside
+         * Nest and cannot read this one.
+         */
+        ...(config.get<string>('nodeEnv') === 'production'
+          ? {
+              dialectOptions: {
+                ssl: { require: true, rejectUnauthorized: false },
+              },
+            }
+          : {}),
         // Never true. The schema comes from the migration in
         // src/database/sql — sync() would quietly drop the check constraints,
         // partial indexes and the exclusion constraint it cannot express.
